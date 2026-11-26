@@ -20,7 +20,8 @@ bash scripts/verify.sh            # full verification (--quick: fast tier)
 bash scripts/ralph.sh 2           # autonomous queue loop — only with a human watching
 npm install                       # once after clone, and whenever package-lock.json changes
 npm run load -- <target> [--ui]   # targets: game-hub · whiteboard · rinfish (options: src/run.ts header, README.md)
-npm run load -- --ui              # no target: pick and switch it on the dashboard
+npm run ui -- --allow-remote      # = npm run load -- --ui: measure deployed servers (address field defaults to the deployed page;
+                                  # stats token from .env LOAD_STATS_TOKEN or the dashboard). Plain `npm run ui` = local servers
 ```
 
 ## Structure rules (invariants — never write code that violates them)

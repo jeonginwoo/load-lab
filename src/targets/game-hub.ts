@@ -48,6 +48,7 @@ export const gameHub: Target = {
   id: 'game-hub',
   title: 'game-hub 로비',
   defaultUrl: 'ws://localhost:8080/ws', // npm run build && STATS=1 npm start. 개발 서버면 ws://localhost:5173/ws
+  deployedPage: 'https://nolja-lobby.duckdns.org/',
   pageToSocket: sameOriginSocket('/ws'), // lobby/src/net/net.ts socketUrl — 페이지와 같은 호스트의 /ws
   roomCap: Infinity,
   maxHz: 30,

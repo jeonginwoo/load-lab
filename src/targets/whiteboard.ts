@@ -25,6 +25,7 @@ export const whiteboard: Target = {
   id: 'whiteboard',
   title: 'whiteboard-3d',
   defaultUrl: 'ws://localhost:8787/ws', // npm run build && STATS=1 npm start. 개발 서버면 ws://localhost:5174/ws
+  deployedPage: 'https://nolja-board.duckdns.org/',
   pageToSocket: sameOriginSocket('/ws'), // client/net.ts — location.host 의 /ws
   roomCap: Infinity,
   maxHz: 30,

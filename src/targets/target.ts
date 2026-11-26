@@ -27,6 +27,8 @@ export interface Target {
   readonly id: string;
   readonly title: string;
   readonly defaultUrl: string; // 로컬 서버 기본 주소
+  /** 배포된 게임 페이지 주소 — --allow-remote 로 띄우면 이쪽이 기본. 남의 서버(주인 동의 전)·페이지로 접속 주소를 모르는 대상은 null */
+  readonly deployedPage: string | null;
   readonly roomCap: number; // 방 하나 최대 인원 (서버 규칙). 없으면 Infinity
   readonly maxHz: number; // 서버가 받아 주는 봇당 움직임 빈도 상한
   readonly probeMinMs: number; // 탐침 간격 하한 (서버 채팅 빈도 제한). 움직임에 싣는 대상은 0

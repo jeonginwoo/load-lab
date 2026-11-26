@@ -43,6 +43,7 @@ export const rinfish: Target = {
   id: 'rinfish',
   title: 'rinfish (낚시섬)',
   defaultUrl: 'ws://localhost:8787', // server 폴더에서 npx wrangler dev — 배포는 VITE_ROOM_SERVER 의 wss 주소
+  deployedPage: null, // 페이지 https://rinfish.vercel.app/ 는 접속 서버가 아니다. 남의 서버라 기본값으로 두지 않는다(CLAUDE.md 불변식 5)
   pageToSocket: null, // 접속 서버(Workers)가 페이지와 따로 — 빌드 때 넣은 VITE_ROOM_SERVER 라 페이지 주소로 알 수 없다
   roomCap: 20,
   maxHz: 10,

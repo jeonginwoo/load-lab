@@ -5,9 +5,9 @@
 ## 현재 상태 (2026-11-26)
 
 - **목적:** 우리 게임 서버(game-hub 로비 · whiteboard-3d · rinfish)에 봇을 붙여 **방 하나에 몇 명까지 버티는지** 재는 도구 + 실시간 대시보드. 스터디(2026-11-16) 인우 몫 「서버 트래픽 성능 테스트 보고서」의 측정 도구
-- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드(대상 없이 띄워 화면에서 대상·주소를 고르고 바꾼다) · 이 PC 밖 주소는 `--allow-remote` · 주소 칸·`--url` 에 게임 페이지 주소 `https://…` 도 — 대상의 클라이언트 규칙으로 ws 주소를 만든다), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
+- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드(대상 없이 띄워 화면에서 대상·주소를 고르고 바꾼다) · 이 PC 밖 주소는 `--allow-remote` · 주소 칸·`--url` 에 게임 페이지 주소 `https://…` 도 — 대상의 클라이언트 규칙으로 ws 주소를 만든다 · `npm run ui -- --allow-remote` 면 배포 페이지가 기본, 지표 토큰은 화면 칸·`.env` `LOAD_STATS_TOKEN`), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
 - **검증 기준선:** `bash scripts/verify.sh` 6단계 PASS (docs · reviewer model · script line endings · typecheck · unit tests 17개 · branch discipline)
-- **다음 작업:** rinfish 를 로컬 서버(`npx wrangler dev`)에 붙여 보기 — 혜린과 같이. 그 뒤 정식 측정(서버를 다른 PC·배포 VM 에 두고 game-hub·whiteboard-3d 단계별 측정 → 보고서)
+- **다음 작업:** 배포 서버(nolja-lobby·nolja-board) 정식 측정 → 보고서. 그 전에 후보 일감의 「과부하면 스스로 멈추기」·「목표 N 에 실패 봇」 을 하면 측정이 편하다. rinfish 는 혜린 동의·접속 서버 주소를 받은 뒤
 - **차단 요소:** 없음
 
 ## 결정 기록 (Decision Log)
@@ -28,6 +28,8 @@
 | 2026-11-26 | **대시보드에서 대상을 고르고 바꾼다 — 한 번에 한 대상만.** `src/run.ts` 의 전역 측정 상태를 「측정 한 판」(`createRun`)으로 묶고, 바꾸면 지금 판의 봇을 모두 끊고 새 판을 연다. 화면에서 넣은 주소도 명령줄과 같은 문(`checkBase`)을 지난다 | 사용자 결정 — 대상마다 프로세스를 따로 띄우는 것이 번거롭다. 여러 대상을 동시에 재면 봇이 같은 PC 의 CPU 를 나눠 써 서로의 지연을 흐리고 화면·집계가 세 벌 필요해, 동시 측정은 하지 않는다. 불변식 5 는 주소가 어디서 오든 지켜야 한다 |
 | 2026-11-26 | **원격 저장소 `origin` = github.com/jeonginwoo/load-lab** — `main` 을 올린다. 흐름은 그대로 로컬 판(브랜치 → `/wrap-up` 에서 커밋·`--ff-only` 합치기), push 는 사용자가 말할 때만 | 사용자가 저장소를 만들고 올리라고 함. PR 을 받을 사람이 없어 PR 판으로 바꿀 이유가 아직 없다 (git-workflow §4) |
 | 2026-11-26 | **게임 페이지 주소 → 서버 ws 주소는 대상마다(`Target.pageToSocket`), 그 게임 클라이언트가 접속 주소를 만드는 규칙을 그대로 옮긴다.** 서버에 묻지 않고, 지표 계약에도 넣지 않는다. 규칙을 모르는 대상(rinfish — 접속 서버가 페이지와 따로인 `VITE_ROOM_SERVER`)은 null 이라 ws 주소를 직접 넣어야 한다. 바꾼 주소도 `checkBase` 를 지난다 | 사용자 요청 — 배포 주소를 ws 로 바꿔 적기 번거롭다. 프로젝트마다 규칙이 달라(rinfish) 공용 규칙은 틀린다. 계약에 넣으면 지표를 켜야만 주소를 알고, 버전 올림·두 서버 수정이 따르며, 남의 서버(rinfish)에는 못 넣는다. game-hub·whiteboard-3d 클라이언트는 둘 다 같은 호스트의 `/ws`(코드 확인) |
+| 2026-11-26 | **측정은 배포 서버가 기본 — `--allow-remote` 면 대상의 `deployedPage`(game-hub `nolja-lobby.duckdns.org`, whiteboard `nolja-board.duckdns.org`)가 기본 주소, 로컬은 봇 확인용.** 지표 토큰은 판마다(화면 칸 → `--stats-token` → `.env` `LOAD_STATS_TOKEN`), 화면으로 돌려보내지 않는다. rinfish 는 기본값 없음. `--allow-remote` 문은 그대로 | 사용자 결정 — 같은 PC 에서 재면 봇이 CPU 를 나눠 써 숫자가 흐리고 배포 환경의 한도가 빠져 의미가 없다. rinfish 는 남의 서버(불변식 5)이고 페이지(vercel)와 접속 서버가 따로라 페이지로 알 수 없다 |
+| 2026-11-26 | **`/__stats` 는 3초 기다리고 묻는 중엔 새로 묻지 않는다, 실패 이유(403·시간 초과·없음)를 나눠 보인다** | 배포 측정에서 CPU 100 을 넘자 0.8초 안에 답이 안 와 지표가 「안 내줌」 으로 사라졌다 — `/__stats` 는 게임과 같은 이벤트 루프라 한계를 잴 때 가장 늦다 |
 | 2026-11-24 | **`.claude/settings.json` 은 프로파일 기본 그대로** — allow 에 `npm test`·`npm run typecheck`·`npm run load`·`git merge` 를 더하는 것은 사용자가 직접 | 권한 목록은 에이전트가 스스로 넓히지 않는다(적용 중 자동 모드 분류기가 막음). 더하지 않아도 동작은 같고 확인 프롬프트가 뜰 뿐 |
 
 ## 작업 큐 (ralph 루프용)
@@ -44,6 +46,10 @@
 - whiteboard-3d 낙서 부하 — 봇이 `paint` 도 보내기. 방 기록(최대 10만 토막)이 쌓이면 늦게 온 사람의 `welcome` 이 커진다(스터디 체크리스트 c7). 지금 봇은 움직임만
 - 대시보드 그래프에 서버 메모리·방 수 줄 — 지금은 숫자 칸에만
 - `--csv` 를 판마다 나누기 — 화면에서 대상을 바꾸면 같은 파일에 이어 적혀 `sec` 가 0 부터 다시 시작하고 어느 대상인지 열이 없다 (2026-11-26 대상 바꾸기 작업 중 발견, README 에 주의만 적음)
+- 대시보드 「목표 N」 에 접속 실패·끊긴 봇이 남는다 — 실패한 봇은 다시 붙지 않고 `bots` 에 남아(`target: bots.length + pending`) 목표와 접속 수의 차이가 계속 벌어져 「못 넣었다」 를 가르기 어렵다. 「목표 N · 실패 K」 로 나눠 보이거나 실패 봇을 목표에서 빼기 (2026-11-26 배포 서버 측정 중 사용자가 겪음)
+- 과부하면 스스로 멈추기 — `--step` 단계 늘리기는 서버가 밀려도 `--bots` 까지 계속 붙여 배포 서버(실제 플레이어)를 오래 괴롭힌다. 예: `--stop-on cpu=90,slow,drop` — 신호가 몇 초 이어지면 더 늘리지 않고 마지막 단계만큼 빼서 「버틴 인원」 을 남기고 끝낸다 (2026-11-26 사용자 요청)
+- 지표 계약 문구 정정 — `docs/stats-contract.md` 의 `cpu` 「100 에 가까우면 포화」 가 틀리다. 서버가 `process.cpuUsage()` 로 재 GC·압축 등 보조 스레드까지 더해 100 을 넘는다(배포 측정에서 실제로 넘음). JS 스레드 포화는 `loopP99Ms` 로 본다고 고친다. 모양은 그대로라 버전 올림 없음 — 문구만이지만 계약 문서라 브랜치로
+- 테스트 없는 규칙 — `defaultAddress`(`--allow-remote` 면 배포 페이지), 지표 실패 이유 가르기(`serverWhy`: 403·시간 초과·없음), CPU 그래프 축 늘리기는 `src/run.ts`·`dashboard.html` 안에 있어 단위 테스트가 없다(2026-11-26 reviewer MINOR). 순수 함수로 빼 테스트할지
 - verify 의 unit tests 가 Git Bash 에서 `cd /c/Projects/...` 로 들어간 셸에서는 실패(`describe` 에서 `reading 'config'`, 테스트 0개), `cd c:/Projects/...` 로 들어가면 15개 통과 — 코드 변경과 무관(변경 전 트리에서도 같음). vitest 5.1.1 이 작업 폴더 표기에 따라 모듈을 두 번 읽는 듯. 원인 확인 후 verify.sh 에서 폴더 표기를 고정할지. 2026-11-26 reviewer 에이전트도 이 증상으로 verify 를 FAIL 로 봤다(같은 트리가 `c:/` 표기로는 17개 통과) — 리뷰 판정을 흐리니 우선순위 올릴 것
 
 ## 세션 로그
@@ -56,6 +62,11 @@
 - 미해결: <다음 세션으로 넘기는 것 · 확인하지 못한 것>
 - 다음 작업: <구체적으로>
 ```
+
+### 2026-11-26 — 배포 서버 측정 기본 · 화면 지표 토큰 · 지표 시간 초과
+- 완료: 대시보드 지표 토큰 칸(판마다, 비면 `--stats-token` → `.env` `LOAD_STATS_TOKEN`, 화면·SSE 로 돌려보내지 않음), `Target.deployedPage` 로 `--allow-remote` 면 배포 페이지가 기본, `npm run ui`. 배포 측정 중 사용자가 겪은 두 문제 — CPU 그래프가 100 에서 잘림(축이 늘게), 바쁜 서버의 `/__stats` 가 0.8초를 넘겨 지표가 사라짐(3초·겹침 방지·403/시간 초과/없음 구분). 로컬 가짜 서버로 확인: 토큰 없음·틀림 403 표시, 맞으면 CPU, `.env` 토큰, `--allow-remote` 기본 주소, 1.5초 지연 → 값 나옴, 5초 → 시간 초과 표시. 배포 두 서버 `/__stats` 를 밖에서 GET — 토큰 없음·틀림 403, 맞는 토큰 200(두 서버 같은 토큰). verify 6단계 PASS, reviewer APPROVE(MINOR 중 시간 초과 문구 낮춤·README 토큰 주의 반영, 테스트 없는 규칙은 후보 일감)
+- 미해결: 고친 뒤 배포 서버에 봇을 붙여 다시 재 보지 않음(사용자가 재는 중) — CPU 100 넘을 때 그래프·지표가 보이는지. 대시보드 화면은 브라우저로 보지 않음. 지금 배포 토큰은 짧고 대화에 남아 무작위 값으로 바꾸기를 권함
+- 다음 작업: 후보 일감 「과부하면 스스로 멈추기」·「목표 N 에 실패 봇」 → 배포 정식 측정
 
 ### 2026-11-26 — 게임 페이지 주소로 서버 주소 만들기
 - 완료: `--url`·대시보드 주소 칸에 `https://<배포 주소>` 를 넣으면 game-hub·whiteboard 는 `wss://<주소>/ws` 로(`src/targets/target.ts` `pageToSocket`·`toSocketBase`, 각 클라이언트 `net.ts` 규칙), rinfish 는 안내와 함께 거절. README 표. 테스트 2개(17개). 명령줄로 원격 페이지 주소 → wss 로 바뀐 뒤 `--allow-remote` 차단, rinfish 페이지 주소·`ftp://` 거절 확인. verify 6단계 PASS, reviewer NEEDS CHANGES — 유일한 BLOCKER 는 vitest 폴더 표기 문제(후보 일감, 코드 무관), MINOR(대상 파일 머리에 규칙 출처) 반영. 새 Node(22.23) 로 `npm install` — npm 이 다시 쓴 `package-lock.json` 은 되돌림

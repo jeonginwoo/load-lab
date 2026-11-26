@@ -7,7 +7,8 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "load": "node src/run.ts",
+    "load": "node --env-file-if-exists=.env src/run.ts",
+    "ui": "node --env-file-if-exists=.env src/run.ts --ui",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

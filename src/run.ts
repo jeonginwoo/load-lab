@@ -2,7 +2,8 @@
 // 중계 지연은 대상마다 「보낸 시각을 실은 메시지」(채팅 탐침 또는 움직임)를 같은 방 다른 봇이 받은 시각과 빼서 잰다
 // (봇이 모두 한 프로세스라 시계가 같다). 서버 CPU·메모리는 대상이 docs/stats-contract.md 의 /__stats 를 내줄 때만.
 //
-//   npm run load -- --ui                               대시보드(http://localhost:9300)에서 대상·주소를 고르고 바꾼다
+//   npm run ui                                         = npm run load -- --ui. 대시보드(http://localhost:9300)에서 대상·주소·지표 토큰을 고르고 바꾼다
+//   npm run ui -- --allow-remote                       배포 서버 — 주소 칸이 대상의 배포 페이지로 채워진다. 토큰은 .env 의 LOAD_STATS_TOKEN 또는 화면
 //   npm run load -- game-hub --ui                      game-hub 로 시작 — 화면에서 다른 대상으로 바꿀 수 있다
 //   npm run load -- whiteboard --bots 30 --hz 10       30명, 60초, 콘솔 요약
 //   npm run load -- rinfish --url ws://localhost:8787 --bots 40   방 20명 상한이라 방 2개로 나뉜다
@@ -63,6 +64,13 @@ function num(name: keyof typeof opt, fallback: number, min: number): number {
 
 const UI = opt.ui === true;
 const ALLOW_REMOTE = opt['allow-remote'] === true;
+// 지표 토큰 기본값 — 명령줄, 없으면 .env 의 LOAD_STATS_TOKEN (npm 스크립트가 --env-file-if-exists=.env 로 읽는다). 화면 토큰 칸이 덮어쓴다
+const STATS_TOKEN = opt['stats-token'] ?? (process.env['LOAD_STATS_TOKEN']?.trim() || undefined);
+
+/** 주소를 안 주면 — --allow-remote 면 배포 페이지(있는 대상만), 아니면 로컬 */
+function defaultAddress(t: Target): string {
+  return ALLOW_REMOTE && t.deployedPage ? t.deployedPage : t.defaultUrl;
+}
 // 대상은 명령줄에서, 또는 --ui 면 화면에서 고른다
 const cliTarget: Target | null = positionals[0] === undefined ? null : (targetById(positionals[0]) ?? usage(`모르는 대상: ${positionals[0]}`));
 if (cliTarget === null && !UI) usage('대상을 정해 주세요');
@@ -133,8 +141,9 @@ interface ServerStats {
   readonly loopP99Ms?: number;
 }
 
-/** 측정 한 판 — 대상 하나·주소 하나에 붙은 봇들과 그 집계. end() 로 끝내면 다시 쓰지 않는다 */
-function createRun(target: Target, base: string) {
+/** 측정 한 판 — 대상 하나·주소 하나에 붙은 봇들과 그 집계. end() 로 끝내면 다시 쓰지 않는다.
+ *  statsToken 은 서버가 STATS_TOKEN 으로 지표를 잠갔을 때 (화면 토큰 칸, 비었으면 --stats-token) */
+function createRun(target: Target, base: string, statsToken: string | undefined) {
   const PER_ROOM = Math.min(target.roomCap, PER_ROOM_OPT);
   const PROBE_MS = target.probeMinMs === 0 ? 0 : Math.max(target.probeMinMs, PROBE_OPT_MS);
   const PROBE_ON = PROBE_OPT_MS > 0 && PROBE_MS > 0;
@@ -327,16 +336,27 @@ function createRun(target: Target, base: string) {
   // ── 서버 지표 (docs/stats-contract.md)
   const statsBase = target.statsUrl(base);
   let serverStats: ServerStats | null = null;
+  // 지표가 없을 때 왜 — denied: 403(토큰), slow: 기다려도 답이 없음(서버 과부하 신호), none: 지표를 내주지 않는 서버
+  let statsWhy: 'denied' | 'slow' | 'none' | null = null;
+  let statsInFlight = false;
+  // /__stats 는 게임과 같은 이벤트 루프가 답한다 — 서버가 가장 바쁠 때(한계를 잴 때) 늦게 온다. 짧게 끊으면 그 순간 숫자가
+  // 사라지므로 넉넉히 기다리고, 늦게 온 값은 다음 표본에 쓴다. 묻는 중이면 새로 묻지 않는다(바쁜 서버에 요청을 쌓지 않게)
+  const STATS_WAIT_MS = 3000;
 
   async function pollServer(): Promise<void> {
-    if (!statsBase) return;
+    if (!statsBase || statsInFlight) return;
+    statsInFlight = true;
     try {
-      const url = opt['stats-token'] ? `${statsBase}?token=${encodeURIComponent(opt['stats-token'])}` : statsBase;
-      const res = await fetch(url, { signal: AbortSignal.timeout(800) });
+      const url = statsToken ? `${statsBase}?token=${encodeURIComponent(statsToken)}` : statsBase;
+      const res = await fetch(url, { signal: AbortSignal.timeout(STATS_WAIT_MS) });
       const body: unknown = res.ok ? await res.json() : null;
       serverStats = typeof body === 'object' && body !== null && typeof (body as ServerStats).conns === 'number' ? (body as ServerStats) : null;
-    } catch {
-      serverStats = null; // 지표를 내주지 않는 서버(STATS 꺼짐·개발 서버) — 봇 쪽 지표만
+      statsWhy = serverStats ? null : res.status === 403 ? 'denied' : 'none';
+    } catch (e) {
+      serverStats = null;
+      statsWhy = e instanceof Error && e.name === 'TimeoutError' ? 'slow' : 'none'; // none: STATS 꺼짐·개발 서버·닿지 않음 — 봇 쪽 지표만
+    } finally {
+      statsInFlight = false;
     }
   }
 
@@ -372,6 +392,7 @@ function createRun(target: Target, base: string) {
       failed,
       rooms: [...inRoom.values()].filter((n) => n > 0).length,
       server: serverStats,
+      serverWhy: statsWhy,
     };
     secWin = new Window();
     history.push(s);
@@ -464,16 +485,16 @@ let exiting = false;
 /** 대시보드가 붙을 때·판이 바뀔 때 보내는 것 */
 function initPayload(): unknown {
   return {
-    targets: TARGETS.map((t) => ({ id: t.id, title: t.title, defaultUrl: t.defaultUrl })),
+    targets: TARGETS.map((t) => ({ id: t.id, title: t.title, defaultUrl: defaultAddress(t) })),
     logs,
     ...(run ? run.info() : { id: null, target: null, url: null, maxHz: null, approx: false, stats: false, history: [] }),
   };
 }
 
 /** 새 판을 연다 — 지금 판이 있으면 봇을 모두 끊고 끝낸 뒤. base 는 checkBase 를 지난 주소여야 한다 */
-function start(target: Target, base: string): void {
+function start(target: Target, base: string, statsToken: string | undefined): void {
   run?.end();
-  run = createRun(target, base);
+  run = createRun(target, base, statsToken);
   broadcast('init', initPayload());
 }
 
@@ -519,11 +540,12 @@ function startUi(): void {
       if (exiting) return refuse(409, '끝내는 중이다');
       const t = targetById(url.searchParams.get('target') ?? '');
       if (!t) return refuse(400, '모르는 대상이다');
-      const to = toSocketBase(t, url.searchParams.get('url')?.trim() || t.defaultUrl);
+      const to = toSocketBase(t, url.searchParams.get('url')?.trim() || defaultAddress(t));
       if ('error' in to) return refuse(400, to.error);
       const why = checkBase(to.base);
       if (why !== null) return refuse(400, why);
-      start(t, to.base);
+      // 토큰은 화면으로 돌려보내지 않는다 — 칸이 비었으면 명령줄 --stats-token
+      start(t, to.base, url.searchParams.get('token')?.trim() || STATS_TOKEN);
       res.writeHead(204).end();
       return;
     }
@@ -570,10 +592,10 @@ if (opt.csv) {
 }
 process.on('SIGINT', stop);
 if (cliTarget) {
-  const to = toSocketBase(cliTarget, opt.url ?? cliTarget.defaultUrl);
+  const to = toSocketBase(cliTarget, opt.url ?? defaultAddress(cliTarget));
   if ('error' in to) usage(to.error);
   const why = checkBase(to.base);
   if (why !== null) usage(why);
-  start(cliTarget, to.base);
+  start(cliTarget, to.base, STATS_TOKEN);
 }
 if (UI) startUi();

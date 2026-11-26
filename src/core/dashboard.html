@@ -76,6 +76,7 @@ iframe{width:100%;height:calc(100vh - 64px);min-height:420px;border:1px solid va
     <div class="grp"><span>대상</span>
       <select id="pick" aria-label="대상"></select>
       <input id="url" spellcheck="false" autocomplete="off" aria-label="서버 ws 주소 또는 게임 페이지 주소" title="ws(s):// 서버 주소, 또는 게임 페이지 주소 https://… (game-hub·whiteboard 는 클라이언트 규칙으로 ws 주소를 만든다)">
+      <input id="token" type="password" spellcheck="false" autocomplete="off" placeholder="지표 토큰" aria-label="서버 지표 토큰 (선택)" title="서버를 STATS_TOKEN 으로 띄웠을 때만. 비우면 명령줄 --stats-token 또는 .env 의 LOAD_STATS_TOKEN" style="width:min(100%,8rem)">
       <button id="start">시작</button>
     </div>
     <div class="grp"><span>봇</span>
@@ -190,8 +191,10 @@ function render() {
     const cpu = srv && typeof srv.cpu === 'number' ? srv.cpu : null;
     $('v-cpu').textContent = cpu === null ? '-' : `${Math.round(cpu)}%`;
     $('s-cpu').textContent = srv
-      ? [`접속 ${srv.conns}`, srv.rooms !== undefined ? `방 ${srv.rooms}` : '', srv.memMb !== undefined ? `메모리 ${Math.round(srv.memMb)} MB` : '',
+      ? [cpu !== null && cpu > 100 ? '100 초과 = GC·압축 등 보조 스레드까지 (JS 포화는 루프 p99 로)' : '', `접속 ${srv.conns}`, srv.rooms !== undefined ? `방 ${srv.rooms}` : '', srv.memMb !== undefined ? `메모리 ${Math.round(srv.memMb)} MB` : '',
          srv.loopP99Ms !== undefined ? `루프 p99 ${srv.loopP99Ms.toFixed(0)}ms` : ''].filter(Boolean).join(' · ')
+      : s.serverWhy === 'denied' ? '서버가 지표를 거절(403) — 토큰 칸을 채우고 「시작」'
+      : s.serverWhy === 'slow' ? '서버가 3초 안에 지표를 못 줌 — 과부하 신호일 수 있다 (네트워크·봇 PC 도 볼 것)'
       : init && init.stats ? '서버가 지표를 안 내줌 — STATS=1 로 띄웠는지' : '이 대상은 서버 지표 없음 (docs/stats-contract.md)';
     $('t-cpu').classList.toggle('warn', cpu !== null && cpu >= 80);
     $('v-recv').textContent = fmt(s.recv);
@@ -208,7 +211,10 @@ function render() {
     $('note').textContent = `봇 프로세스 루프 지연 p99 ${s.botLoop}ms — Windows 에선 쉬어도 20~30ms. 크게 오르면 서버가 아니라 봇 쪽이 병목이다.`;
   }
   draw($('c-bots'), [{ get: (s) => s.bots, color: '--a' }], { floor: 10 });
-  draw($('c-cpu'), [{ get: (s) => (s.server && typeof s.server.cpu === 'number' ? s.server.cpu : null), color: '--b' }], { max: 100, line: 80 });
+  // 축은 100 고정 — 넘으면(보조 스레드까지 더해져 코어 1개를 넘음) 값에 맞춰 늘린다. 잘라 그리면 선이 맨 위에 붙어 안 보인다
+  const cpuOf = (s) => (s.server && typeof s.server.cpu === 'number' ? s.server.cpu : null);
+  const cpuPeak = Math.max(0, ...samples.slice(-WINDOW).map((s) => cpuOf(s) ?? 0));
+  draw($('c-cpu'), [{ get: cpuOf, color: '--b' }], cpuPeak <= 100 ? { max: 100, line: 80 } : { floor: 100, line: 80 });
   draw($('c-msg'), [{ get: (s) => s.expected, color: '--muted', dash: true }, { get: (s) => s.recv, color: '--a' }], { floor: 100 });
   draw($('c-lat'), [{ get: (s) => s.p50, color: '--good' }, { get: (s) => s.p95, color: '--b' }, { get: (s) => s.p99, color: '--c' }], { floor: 10 });
 }
@@ -270,13 +276,14 @@ $('pick').addEventListener('change', fillUrl);
 async function startRun() {
   if (!init) return;
   if (init.id && !confirm('지금 봇을 모두 끊고 대상을 바꿀까요?')) return;
-  const q = new URLSearchParams({ target: $('pick').value, url: $('url').value.trim() });
+  const q = new URLSearchParams({ target: $('pick').value, url: $('url').value.trim(), token: $('token').value.trim() });
   const res = await fetch(`/start?${q}`, { method: 'POST' }).catch(() => null);
   if (!res) alert('봇 프로세스에 닿지 않는다 — 터미널에서 끝났는지 볼 것');
   else if (!res.ok) alert(await res.text());
 }
 $('start').addEventListener('click', startRun);
 $('url').addEventListener('keydown', (e) => { if (e.key === 'Enter') startRun(); });
+$('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') startRun(); });
 async function setLobby(on) {
   if (!init) return;
   const box = $('lobby');
