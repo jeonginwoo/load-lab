@@ -2,10 +2,10 @@
 
 > **모든 세션은 이 파일을 읽는 것으로 시작하고, 이 파일을 갱신하는 것으로 끝난다.**
 
-## 현재 상태 (2026-11-24)
+## 현재 상태 (2026-11-26)
 
 - **목적:** 우리 게임 서버(game-hub 로비 · whiteboard-3d · rinfish)에 봇을 붙여 **방 하나에 몇 명까지 버티는지** 재는 도구 + 실시간 대시보드. 스터디(2026-11-16) 인우 몫 「서버 트래픽 성능 테스트 보고서」의 측정 도구
-- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드 · 이 PC 밖 주소는 `--allow-remote`), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
+- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드(대상 없이 띄워 화면에서 대상·주소를 고르고 바꾼다) · 이 PC 밖 주소는 `--allow-remote`), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
 - **검증 기준선:** `bash scripts/verify.sh` 6단계 PASS (docs · reviewer model · script line endings · typecheck · unit tests 15개 · branch discipline)
 - **다음 작업:** rinfish 를 로컬 서버(`npx wrangler dev`)에 붙여 보기 — 혜린과 같이. 그 뒤 정식 측정(서버를 다른 PC·배포 VM 에 두고 game-hub·whiteboard-3d 단계별 측정 → 보고서)
 - **차단 요소:** 없음
@@ -25,6 +25,8 @@
 | 2026-11-24 | **서버 지표 계약 v1** (`docs/stats-contract.md`) — `GET /__stats`, `STATS=1`(로컬) 또는 `STATS_TOKEN`(`?token=`, 공개 배포에서 켤 유일한 방법), 본문 `conns` 필수 + `rooms`·`cpu`·`memMb`·`loopP99Ms` 선택, CORS 없음. rinfish(Workers)는 해당 없음 — Cloudflare 대시보드 | 봇은 지연까지만 알아 「CPU 80% 에 닿는 인원」은 서버 안의 숫자가 있어야 답한다. 읽는 쪽이 봇 프로세스라 CORS 는 노출만 늘린다. Workers 는 코드에서 CPU·메모리를 못 읽는다 |
 | 2026-11-24 | **이 PC 밖 주소는 `--allow-remote` 가 있어야, 남의 배포 서버(rinfish)는 주인 동의 후에만** (CLAUDE.md 불변식 5) | 공용 서버가 느려지면 다른 사람의 플레이를 망치고, Durable Objects 는 요청·시간만큼 요금이 붙으며 봇 방이 7일 남는다 |
 | 2026-11-24 | **git-flow 로컬 판** — `main` 에 코드 작업 금지, 브랜치 작업은 `/wrap-up` 에서만 커밋 + `--ff-only` 합치기. verify 에 branch discipline(`main` 에서 바뀌어도 되는 것은 `docs/PROGRESS.md`·`README.md` 뿐) | 사용자의 다른 저장소(game-hub 결정 2026-10-26)와 같은 흐름 — 작업 끝나자마자 커밋되면 수정 요청이 `fix:` 커밋으로 줄줄이 붙는다(git-flow 고통 신호). 원격이 아직 없어 PR 판이 아니라 로컬 판 |
+| 2026-11-26 | **대시보드에서 대상을 고르고 바꾼다 — 한 번에 한 대상만.** `src/run.ts` 의 전역 측정 상태를 「측정 한 판」(`createRun`)으로 묶고, 바꾸면 지금 판의 봇을 모두 끊고 새 판을 연다. 화면에서 넣은 주소도 명령줄과 같은 문(`checkBase`)을 지난다 | 사용자 결정 — 대상마다 프로세스를 따로 띄우는 것이 번거롭다. 여러 대상을 동시에 재면 봇이 같은 PC 의 CPU 를 나눠 써 서로의 지연을 흐리고 화면·집계가 세 벌 필요해, 동시 측정은 하지 않는다. 불변식 5 는 주소가 어디서 오든 지켜야 한다 |
+| 2026-11-26 | **원격 저장소 `origin` = github.com/jeonginwoo/load-lab** — `main` 을 올린다. 흐름은 그대로 로컬 판(브랜치 → `/wrap-up` 에서 커밋·`--ff-only` 합치기), push 는 사용자가 말할 때만 | 사용자가 저장소를 만들고 올리라고 함. PR 을 받을 사람이 없어 PR 판으로 바꿀 이유가 아직 없다 (git-workflow §4) |
 | 2026-11-24 | **`.claude/settings.json` 은 프로파일 기본 그대로** — allow 에 `npm test`·`npm run typecheck`·`npm run load`·`git merge` 를 더하는 것은 사용자가 직접 | 권한 목록은 에이전트가 스스로 넓히지 않는다(적용 중 자동 모드 분류기가 막음). 더하지 않아도 동작은 같고 확인 프롬프트가 뜰 뿐 |
 
 ## 작업 큐 (ralph 루프용)
@@ -40,6 +42,8 @@
 - 정식 측정 — 서버를 다른 PC·배포 VM 에. game-hub 로컬 참고값(2026-11-19, 같은 PC, 움직임 12.5/초): 20명 CPU 3% · 지연 p99 2ms, 40명 15% · 11ms, 60명 31% · 41ms. 결과 CSV·보고서 자리(`reports/`)를 그때 정한다
 - whiteboard-3d 낙서 부하 — 봇이 `paint` 도 보내기. 방 기록(최대 10만 토막)이 쌓이면 늦게 온 사람의 `welcome` 이 커진다(스터디 체크리스트 c7). 지금 봇은 움직임만
 - 대시보드 그래프에 서버 메모리·방 수 줄 — 지금은 숫자 칸에만
+- `--csv` 를 판마다 나누기 — 화면에서 대상을 바꾸면 같은 파일에 이어 적혀 `sec` 가 0 부터 다시 시작하고 어느 대상인지 열이 없다 (2026-11-26 대상 바꾸기 작업 중 발견, README 에 주의만 적음)
+- verify 의 unit tests 가 Git Bash 에서 `cd /c/Projects/...` 로 들어간 셸에서는 실패(`describe` 에서 `reading 'config'`, 테스트 0개), `cd c:/Projects/...` 로 들어가면 15개 통과 — 코드 변경과 무관(변경 전 트리에서도 같음). vitest 5.1.1 이 작업 폴더 표기에 따라 모듈을 두 번 읽는 듯. 원인 확인 후 verify.sh 에서 폴더 표기를 고정할지
 
 ## 세션 로그
 
@@ -51,6 +55,11 @@
 - 미해결: <다음 세션으로 넘기는 것 · 확인하지 못한 것>
 - 다음 작업: <구체적으로>
 ```
+
+### 2026-11-26 — 대시보드에서 대상 고르기·바꾸기
+- 완료: `npm run load -- --ui` 로 대상 없이 띄워 화면에서 대상·주소를 고르고, 「바꾸기」 로 프로세스를 다시 띄우지 않고 대상을 바꾼다(`src/run.ts` `createRun`·`POST /start`, `dashboard.html` 대상 칸). 로컬 game-hub(18080)·whiteboard-3d(18787)에 대시보드 API 로 game-hub 10명 → whiteboard 8명 → game-hub 5명 전환 — 매번 지연·서버 CPU 가 나오고 앞 서버 접속이 0 으로 내려감. 대상 고르기 전 조작 409, 모르는 대상·원격·`http://` 주소 400, 다른 출처 403. verify 6단계 PASS, reviewer APPROVE(BLOCKER·MAJOR 없음 — MINOR 중 끝내는 중 `/start` 거절, 끝난 판의 늦은 거절 로그, 다시 붙을 때 주소 칸 덮어쓰기, 같은 대상·다른 주소로 바꿀 때 오른쪽 화면 갱신을 반영). CLAUDE.md 명령 목록에 `npm run load -- --ui` 한 줄. 원격 저장소 `origin` 연결
+- 미해결: 대시보드 화면을 브라우저로 열어 보지 않음(대상 칸·확인 창·오류 알림·「화면에서 보기」 전환은 스크립트 문법 검사까지만). rinfish 는 전환 대상으로 붙여 보지 않음. 숫자는 봇과 서버가 같은 PC
+- 다음 작업: 브라우저에서 대상 칸 눌러 보기 → rinfish 로컬 확인 (후보 일감)
 
 ### 2026-11-24 — 하네스 적용
 - 완료: `harness_default` 코드 프로파일 적용(기존 코드에 입히기 — ADOPTION B) — CLAUDE.md(불변식 5개는 코드가 이미 지키는 구조에서) · PROGRESS · verify.sh(+ typecheck · unit tests · branch discipline) · /next · /wrap-up · Stop 훅(`src test`) · settings.json(기본) · reviewer · ralph · git-flow 로컬 판(`docs/conventions/git-workflow.md`). verify PASS

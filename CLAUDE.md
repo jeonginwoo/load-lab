@@ -20,6 +20,7 @@ bash scripts/verify.sh            # full verification (--quick: fast tier)
 bash scripts/ralph.sh 2           # autonomous queue loop — only with a human watching
 npm install                       # once after clone, and whenever package-lock.json changes
 npm run load -- <target> [--ui]   # targets: game-hub · whiteboard · rinfish (options: src/run.ts header, README.md)
+npm run load -- --ui              # no target: pick and switch it on the dashboard
 ```
 
 ## Structure rules (invariants — never write code that violates them)

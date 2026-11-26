@@ -38,6 +38,8 @@ h1{font-size:1.4rem;margin:0}
 .grp>span{font-size:.8rem;color:var(--muted)}
 button,select{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 11px;cursor:pointer}
 button:hover,select:hover{border-color:var(--a)}
+input{font:inherit;font-size:.85rem;font-family:var(--mono);border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 9px;width:min(100%,17rem)}
+input:focus{outline:none;border-color:var(--a)}
 button.stop{color:var(--bad)}
 a{color:var(--a)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
@@ -71,6 +73,11 @@ iframe{width:100%;height:calc(100vh - 64px);min-height:420px;border:1px solid va
   </header>
 
   <div class="bar">
+    <div class="grp"><span>대상</span>
+      <select id="pick" aria-label="대상"></select>
+      <input id="url" spellcheck="false" autocomplete="off" aria-label="서버 ws 주소">
+      <button id="start">시작</button>
+    </div>
     <div class="grp"><span>봇</span>
       <button data-bots="-10">−10</button><button data-bots="-1">−1</button>
       <button data-bots="1">+1</button><button data-bots="10">+10</button><button data-bots="50">+50</button>
@@ -208,21 +215,47 @@ function render() {
 
 function setState(text, cls) { const el = $('state'); el.textContent = text; el.className = `state ${cls}`; }
 
+/** 고른 대상의 로컬 기본 주소를 주소 칸에 */
+function fillUrl() {
+  const t = init && init.targets.find((x) => x.id === $('pick').value);
+  if (t) $('url').value = t.defaultUrl;
+}
+
+let shownId; // 지금 화면이 보여 주는 판(대상 + 주소) — 처음엔 undefined, 대상을 고르기 전엔 null
 const es = new EventSource('/events');
+// init 은 처음 붙을 때, 그리고 대상을 바꿔 새 판이 열릴 때마다 온다. id 가 null 이면 아직 대상을 고르지 않았다
 es.addEventListener('init', (e) => {
   init = JSON.parse(e.data);
+  const runKey = init.id ? `${init.id} ${init.url}` : null;
+  const changed = shownId !== undefined && shownId !== runKey;
+  const first = shownId === undefined;
+  shownId = runKey;
   samples = init.history;
-  $('meta').textContent = init.url;
-  $('target').textContent = init.target;
-  document.title = `부하 테스트 · ${init.target}`;
+  const pick = $('pick');
+  if (pick.options.length === 0) for (const t of init.targets) pick.add(new Option(t.title, t.id));
+  // 같은 판의 init 이 다시 오면(연결이 끊겼다 붙음) 쓰던 주소 칸을 덮지 않는다
+  if (init.id && (first || changed)) { pick.value = init.id; $('url').value = init.url; }
+  else if (first) fillUrl();
+  $('start').textContent = init.id ? '바꾸기' : '시작';
+  $('meta').textContent = init.url ?? '';
+  $('target').textContent = init.target ?? '';
+  document.title = init.target ? `부하 테스트 · ${init.target}` : '부하 테스트';
   // 대상의 움직임 상한보다 큰 선택지는 숨긴다
-  for (const o of $('hz').options) o.hidden = Number(o.value) > init.maxHz;
-  setState('실시간', 'live');
+  for (const o of $('hz').options) o.hidden = init.id !== null && Number(o.value) > init.maxHz;
+  if (init.id) setState('실시간', 'live'); else setState('대상을 고를 것', '');
   $('log').replaceChildren();
   for (const line of init.logs) addLog(line);
+  if (samples.length === 0) {
+    // 새 판 — 앞 판의 숫자가 첫 샘플이 올 때까지 남지 않게
+    for (const el of document.querySelectorAll('.tile .v')) el.textContent = '-';
+    for (const el of document.querySelectorAll('.tile .s[id]')) el.textContent = '';
+    for (const el of document.querySelectorAll('.tile.warn')) el.classList.remove('warn');
+  }
   render();
-  // 주소에 ?lobby=1 이면 처음부터 로비를 오른쪽에
-  if (new URLSearchParams(location.search).has('lobby') && !$('page').classList.contains('split')) setLobby(true);
+  const split = $('page').classList.contains('split');
+  // 대상이 바뀌면 오른쪽 화면도 새 대상으로. 주소에 ?lobby=1 이면 처음부터 오른쪽에
+  if (changed && split) setLobby(true);
+  else if (init.id && new URLSearchParams(location.search).has('lobby') && !split) setLobby(true);
 });
 es.addEventListener('sample', (e) => { samples.push(JSON.parse(e.data)); if (samples.length > 600) samples.shift(); render(); });
 es.addEventListener('stopped', () => { setState('끝남', 'off'); es.close(); });
@@ -232,6 +265,18 @@ const post = (path, v) => fetch(`${path}?v=${encodeURIComponent(v)}`, { method: 
 document.querySelectorAll('[data-bots]').forEach((b) => b.addEventListener('click', () => post('/bots', b.dataset.bots)));
 $('hz').addEventListener('change', (e) => post('/hz', e.target.value));
 $('stop').addEventListener('click', () => { if (confirm('봇을 모두 끊고 끝낼까요?')) post('/stop', 0); });
+// 대상 고르기·바꾸기 — 바꾸면 지금 판의 봇을 모두 끊고 새 판이 열린다(init 이 다시 온다)
+$('pick').addEventListener('change', fillUrl);
+async function startRun() {
+  if (!init) return;
+  if (init.id && !confirm('지금 봇을 모두 끊고 대상을 바꿀까요?')) return;
+  const q = new URLSearchParams({ target: $('pick').value, url: $('url').value.trim() });
+  const res = await fetch(`/start?${q}`, { method: 'POST' }).catch(() => null);
+  if (!res) alert('봇 프로세스에 닿지 않는다 — 터미널에서 끝났는지 볼 것');
+  else if (!res.ok) alert(await res.text());
+}
+$('start').addEventListener('click', startRun);
+$('url').addEventListener('keydown', (e) => { if (e.key === 'Enter') startRun(); });
 async function setLobby(on) {
   if (!init) return;
   const box = $('lobby');

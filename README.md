@@ -6,11 +6,18 @@
 
 ```bash
 npm install                               # 처음 한 번
-npm run load -- game-hub --ui             # 대시보드 http://localhost:9300 — 버튼으로 봇을 늘리고 줄이며 본다
+npm run load -- --ui                      # 대시보드 http://localhost:9300 — 화면에서 대상·주소를 고르고, 버튼으로 봇을 늘리고 줄이며 본다
+npm run load -- game-hub --ui             # game-hub 로 바로 시작 (화면에서 다른 대상으로 바꿀 수 있다)
 npm run load -- whiteboard --bots 30      # 30명 60초, 콘솔 요약
 npm run load -- rinfish --bots 40         # 방 20명 상한이라 방 2개로 나뉜다
 npm test                                  # 순수 규칙 테스트
 ```
+
+대시보드의 「대상」 칸에서 대상을 고르면 로컬 기본 주소가 채워진다(고쳐 쓸 수 있다). 「바꾸기」 는 지금 봇을 모두 끊고
+새 대상으로 처음부터 다시 잰다 — **한 번에 한 대상만**. 프로세스를 다시 띄울 필요는 없다.
+화면에서 넣은 주소도 localhost 가 아니면 거절한다(`--allow-remote` 로 띄웠을 때만 간다).
+`--bots`·`--step`·`--duration` 은 판마다 다시 적용된다 — `--ui --duration 30` 이면 마지막으로 바꾼 뒤 30초에 프로세스가 끝난다.
+`--csv` 는 대상을 바꿔도 같은 파일에 이어 적는다(`sec` 가 0 부터 다시 시작) — 보고서용 측정은 대상마다 따로 실행할 것.
 
 ## 무엇을 재나
 
@@ -45,7 +52,7 @@ npm test                                  # 순수 규칙 테스트
 | `--duration` | 60 (`--ui` 면 0) | 마지막 봇이 들어온 뒤 잴 시간(초), 0 = Ctrl+C 까지 |
 | `--probe` | 2 | 채팅 탐침 간격(초), 0 = 끔 |
 | `--report`, `--csv` | 5초 | 콘솔 요약 간격, CSV 파일 |
-| `--ui`, `--ui-port` | 9300 | 대시보드 |
+| `--ui`, `--ui-port` | 9300 | 대시보드. `--ui` 면 대상 없이 띄워 화면에서 고를 수 있다 |
 | `--stats-token` | | 서버가 `STATS_TOKEN` 으로 잠갔을 때 |
 | `--allow-remote` | | 이 PC 밖 서버에 붙이기 |
 
