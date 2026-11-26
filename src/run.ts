@@ -6,12 +6,14 @@
 //   npm run load -- game-hub --ui                      game-hub 로 시작 — 화면에서 다른 대상으로 바꿀 수 있다
 //   npm run load -- whiteboard --bots 30 --hz 10       30명, 60초, 콘솔 요약
 //   npm run load -- rinfish --url ws://localhost:8787 --bots 40   방 20명 상한이라 방 2개로 나뉜다
+//   npm run load -- game-hub --url https://<배포 주소> --allow-remote --ui   페이지 주소 → wss://<배포 주소>/ws
 //   npm run load -- game-hub --bots 100 --step 10 --step-every 20 --csv reports/hub.csv
 //
 // 측정 한 판(createRun)은 대상 하나·주소 하나다. 화면에서 대상을 바꾸면 지금 판의 봇을 모두 끊고 새 판을 연다 —
 // 한 번에 한 대상만 잰다(봇이 같은 PC 의 CPU 를 나눠 쓰면 서로의 지연을 흐린다).
 // localhost 가 아닌 주소(배포 서버)는 --allow-remote 를 붙여야 간다 — 남의 서버·요금이 걸린 서버를 실수로 두드리지 않게.
-// 화면에서 넣은 주소도 같은 문(checkBase)을 지난다.
+// 화면에서 넣은 주소도 같은 문(checkBase)을 지난다. 게임 페이지 주소(https://…)를 넣으면 대상의 클라이언트 규칙으로
+// ws 주소를 만든 뒤 지난다(toSocketBase — 규칙을 모르는 대상은 ws 주소를 넣어야 한다).
 // 같은 PC 에서 서버와 봇을 함께 돌리면 봇도 CPU 를 쓴다 — 보고서에 적을 것. 「봇 루프 지연」이 크면 봇 쪽이 병목.
 // 루프 지연은 Windows 타이머가 거칠어 쉬어도 20~30ms 쯤 나온다 — 절대값보다 인원을 늘릴 때 오르는지를 본다.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -23,7 +25,7 @@ import { WebSocket, type RawData } from 'ws';
 import { percentile, Window } from './core/metrics.ts';
 import { RoomPlan } from './core/rooms.ts';
 import { TARGETS, targetById } from './targets/index.ts';
-import type { BotLogic, Target } from './targets/target.ts';
+import { toSocketBase, type BotLogic, type Target } from './targets/target.ts';
 
 const { values: opt, positionals } = parseArgs({
   allowPositionals: true,
@@ -517,10 +519,11 @@ function startUi(): void {
       if (exiting) return refuse(409, '끝내는 중이다');
       const t = targetById(url.searchParams.get('target') ?? '');
       if (!t) return refuse(400, '모르는 대상이다');
-      const base = url.searchParams.get('url')?.trim() || t.defaultUrl;
-      const why = checkBase(base);
+      const to = toSocketBase(t, url.searchParams.get('url')?.trim() || t.defaultUrl);
+      if ('error' in to) return refuse(400, to.error);
+      const why = checkBase(to.base);
       if (why !== null) return refuse(400, why);
-      start(t, base);
+      start(t, to.base);
       res.writeHead(204).end();
       return;
     }
@@ -567,9 +570,10 @@ if (opt.csv) {
 }
 process.on('SIGINT', stop);
 if (cliTarget) {
-  const base = opt.url ?? cliTarget.defaultUrl;
-  const why = checkBase(base);
+  const to = toSocketBase(cliTarget, opt.url ?? cliTarget.defaultUrl);
+  if ('error' in to) usage(to.error);
+  const why = checkBase(to.base);
   if (why !== null) usage(why);
-  start(cliTarget, base);
+  start(cliTarget, to.base);
 }
 if (UI) startUi();

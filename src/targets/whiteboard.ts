@@ -1,8 +1,8 @@
-// whiteboard-3d — github.com/jeonginwoo/whiteboard-3d, 프로토콜 shared/protocol.ts.
+// whiteboard-3d — github.com/jeonginwoo/whiteboard-3d, 프로토콜 shared/protocol.ts, 접속 주소 규칙 client/net.ts.
 // hello{name} → welcome{id, players, history}, 움직임 state{st:{p, yaw, pitch}}(보낸 사람 빼고 중계). 채팅이 없어서
 // 보낸 시각을 yaw 에 싣는다 — 움직임마다 탐침이 되어 중계 지연을 직접 잰다(봇 아바타는 빙글빙글 돈다).
 // 낙서(paint)는 보내지 않는다 — 방 기록에 쌓여 늦게 온 사람의 welcome 이 커지는 것은 따로 재야 할 일
-import { httpOrigin, randomCode, relayPairs, type BotLogic, type Incoming, type Target } from './target.ts';
+import { httpOrigin, randomCode, sameOriginSocket, relayPairs, type BotLogic, type Incoming, type Target } from './target.ts';
 
 const STAMP_MOD = 1e8; // ms — 약 27시간마다 돈다. yaw 는 이 안의 초
 const AREA = 8; // m — 기둥 둘레를 이 반경 안에서 걷는다
@@ -25,6 +25,7 @@ export const whiteboard: Target = {
   id: 'whiteboard',
   title: 'whiteboard-3d',
   defaultUrl: 'ws://localhost:8787/ws', // npm run build && STATS=1 npm start. 개발 서버면 ws://localhost:5174/ws
+  pageToSocket: sameOriginSocket('/ws'), // client/net.ts — location.host 의 /ws
   roomCap: Infinity,
   maxHz: 30,
   probeMinMs: 0, // 움직임에 시각을 싣는다

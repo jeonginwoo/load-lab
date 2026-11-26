@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { gridOf, nextStep } from '../src/targets/game-hub.ts';
-import { TARGETS } from '../src/targets/index.ts';
+import { TARGETS, targetById } from '../src/targets/index.ts';
+import { toSocketBase } from '../src/targets/target.ts';
 import { passHashFor, rinfish, roomIdFor } from '../src/targets/rinfish.ts';
 import { latencyFromYaw, stampYaw, whiteboard } from '../src/targets/whiteboard.ts';
 
@@ -68,5 +69,22 @@ describe('rinfish', () => {
     const joiner = rinfish.bot({ n: 1, room: 'r', create: false });
     expect(joiner.hello()).toMatchObject({ mode: 'join' });
     expect(joiner.receive({ type: 'error', code: 'full' }, 0)).toEqual({ kind: 'reject', reason: 'full' });
+  });
+});
+
+describe('게임 페이지 주소 → 서버 ws 주소 (toSocketBase)', () => {
+  const hub = targetById('game-hub')!;
+
+  it('game-hub·whiteboard 는 클라이언트 규칙대로 같은 호스트의 /ws — https 면 wss, 경로·쿼리·# 는 버린다', () => {
+    expect(toSocketBase(hub, 'https://hub.example.com/lobby?room=ab#x')).toEqual({ base: 'wss://hub.example.com/ws' });
+    expect(toSocketBase(hub, 'http://localhost:5173')).toEqual({ base: 'ws://localhost:5173/ws' });
+    expect(toSocketBase(whiteboard, 'https://wb.example.com:8443/')).toEqual({ base: 'wss://wb.example.com:8443/ws' });
+  });
+
+  it('ws(s):// 는 그대로, 규칙을 모르는 대상(rinfish)·다른 프로토콜·주소 아닌 것은 거절', () => {
+    expect(toSocketBase(rinfish, 'wss://rooms.example.workers.dev')).toEqual({ base: 'wss://rooms.example.workers.dev' });
+    expect(toSocketBase(rinfish, 'https://rinfish.example.com')).toHaveProperty('error');
+    expect(toSocketBase(hub, 'ftp://x')).toHaveProperty('error');
+    expect(toSocketBase(hub, 'hub.example.com')).toHaveProperty('error');
   });
 });

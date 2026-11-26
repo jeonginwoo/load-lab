@@ -44,7 +44,7 @@ npm test                                  # 순수 규칙 테스트
 
 | 옵션 | 기본 | 뜻 |
 |---|---|---|
-| `--url` | 대상마다 로컬 | 서버 ws 주소 (game-hub `ws://localhost:8080/ws`, whiteboard `ws://localhost:8787/ws`, rinfish `ws://localhost:8787`) |
+| `--url` | 대상마다 로컬 | 서버 ws 주소 (game-hub `ws://localhost:8080/ws`, whiteboard `ws://localhost:8787/ws`, rinfish `ws://localhost:8787`), 또는 게임 페이지 주소 — 아래 |
 | `--bots` | 20 (`--ui` 면 0) | 처음 붙일 봇 수 |
 | `--rooms` / `--per-room` | 1 / 대상 상한 | 고르게 나눌 방 수 / 방 하나 최대 봇 |
 | `--hz` | 5 | 봇당 초당 움직임 (rinfish 는 10 까지) |
@@ -55,6 +55,19 @@ npm test                                  # 순수 규칙 테스트
 | `--ui`, `--ui-port` | 9300 | 대시보드. `--ui` 면 대상 없이 띄워 화면에서 고를 수 있다 |
 | `--stats-token` | | 서버가 `STATS_TOKEN` 으로 잠갔을 때 |
 | `--allow-remote` | | 이 PC 밖 서버에 붙이기 |
+
+## 주소는 게임 페이지 주소로도
+
+`--url`·대시보드 주소 칸에 브라우저 주소창의 게임 페이지 주소(`https://…`)를 넣으면, 그 게임의 클라이언트가 접속 주소를
+만드는 규칙 그대로 ws 주소를 만든다 — 서버에 묻지 않는다.
+
+| 대상 | 페이지 → 서버 | 규칙 출처 |
+|---|---|---|
+| game-hub | `https://<주소>/…` → `wss://<주소>/ws` | `lobby/src/net/net.ts` `socketUrl` |
+| whiteboard | `https://<주소>/…` → `wss://<주소>/ws` | `client/net.ts` |
+| rinfish | 알 수 없음 — `wss://` 서버 주소를 넣는다 | 접속 서버(Workers)가 페이지와 따로, 빌드 때 넣은 `VITE_ROOM_SERVER` |
+
+`http://` 페이지면 `ws://`. 클라이언트가 접속 주소를 만드는 법을 바꾸면 그 대상 파일의 `pageToSocket` 도 고친다.
 
 ## 새 서버 더하기
 

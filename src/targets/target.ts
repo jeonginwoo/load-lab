@@ -33,12 +33,43 @@ export interface Target {
   /** 지금 방 인원 n 들, 봇당 hz, 탐침 hz → 서버가 초당 봇들에게 보내야 하는 메시지 수 (대략이면 approx) */
   expected(roomSizes: readonly number[], hz: number, probeHz: number): { readonly perSec: number; readonly approx: boolean };
   newRoom(i: number): string;
+  /**
+   * 게임 페이지 주소(http/https) → 서버 ws 주소. 실제 클라이언트가 페이지 주소에서 접속 주소를 만드는 규칙을 그대로 옮긴다
+   * (대상 파일 머리에 따라 한 클라이언트 파일을 적는다). 접속 서버가 페이지와 따로라 페이지로 알 수 없는 대상은 null
+   */
+  readonly pageToSocket: ((page: URL) => string) | null;
   socketUrl(base: string, room: string): string;
   /** 서버 지표 주소 (docs/stats-contract.md) — 없는 대상은 null */
   statsUrl(base: string): string | null;
   /** 브라우저로 봇을 보러 갈 곳 — url 이 없으면 안내 글만 */
   watch(base: string, room: string): { readonly url: string | null; readonly note: string };
   bot(ctx: BotCtx): BotLogic;
+}
+
+/** 페이지와 같은 호스트의 path 로 붙는 클라이언트 규칙 — https 면 wss. 페이지의 경로·쿼리·# 는 버린다 */
+export function sameOriginSocket(path: string): (page: URL) => string {
+  return (page) => {
+    const u = new URL(path, page);
+    u.protocol = page.protocol === 'https:' ? 'wss:' : 'ws:';
+    return u.href;
+  };
+}
+
+/**
+ * 사람이 넣은 주소 → 봇이 붙을 ws 주소. ws(s):// 는 그대로, http(s):// 는 대상의 pageToSocket 으로.
+ * 원격 여부는 여기서 보지 않는다 — 바꾼 주소가 run.ts 의 checkBase 를 지난다
+ */
+export function toSocketBase(target: Target, input: string): { readonly base: string } | { readonly error: string } {
+  let u: URL;
+  try {
+    u = new URL(input);
+  } catch {
+    return { error: `주소가 아니다: ${input}` };
+  }
+  if (u.protocol === 'ws:' || u.protocol === 'wss:') return { base: input };
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return { error: `ws(s):// 서버 주소나 http(s):// 게임 페이지 주소여야 한다: ${input}` };
+  if (!target.pageToSocket) return { error: `${target.title} 은 페이지 주소로 서버 주소를 알 수 없다(접속 서버가 따로다) — ws(s):// 서버 주소를 넣을 것: ${input}` };
+  return { base: target.pageToSocket(u) };
 }
 
 /** ws(s)://host/... → http(s)://host */

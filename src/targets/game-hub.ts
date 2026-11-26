@@ -1,7 +1,7 @@
-// game-hub 로비 — github.com/jeonginwoo/game-hub, 프로토콜 server/src/protocol.ts.
+// game-hub 로비 — github.com/jeonginwoo/game-hub, 프로토콜 server/src/protocol.ts, 접속 주소 규칙 lobby/src/net/net.ts.
 // hello{name, at, look} → welcome{id, room}, 움직임 move{at}(칸 단위), 탐침은 chat(보낸 사람에게도 돌아온다, 5초에 5줄).
 // 봇은 welcome 의 문자 맵(rows)에서 벽(#)·문(D)을 피해 걷는다 — 물체가 막는 칸은 보지 않는다(서버도 위치를 검사하지 않는다)
-import { httpOrigin, randomCode, relayPairs, type BotLogic, type Incoming, type Target } from './target.ts';
+import { httpOrigin, randomCode, sameOriginSocket, relayPairs, type BotLogic, type Incoming, type Target } from './target.ts';
 
 type Dir = 'up' | 'down' | 'left' | 'right';
 interface Spot {
@@ -48,6 +48,7 @@ export const gameHub: Target = {
   id: 'game-hub',
   title: 'game-hub 로비',
   defaultUrl: 'ws://localhost:8080/ws', // npm run build && STATS=1 npm start. 개발 서버면 ws://localhost:5173/ws
+  pageToSocket: sameOriginSocket('/ws'), // lobby/src/net/net.ts socketUrl — 페이지와 같은 호스트의 /ws
   roomCap: Infinity,
   maxHz: 30,
   probeMinMs: 1000, // 서버 채팅 제한 5초에 5줄
