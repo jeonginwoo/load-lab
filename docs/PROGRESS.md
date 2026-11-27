@@ -2,12 +2,12 @@
 
 > **모든 세션은 이 파일을 읽는 것으로 시작하고, 이 파일을 갱신하는 것으로 끝난다.**
 
-## 현재 상태 (2026-11-26)
+## 현재 상태 (2026-11-27)
 
 - **목적:** 우리 게임 서버(game-hub 로비 · whiteboard-3d · rinfish)에 봇을 붙여 **방 하나에 몇 명까지 버티는지** 재는 도구 + 실시간 대시보드. 스터디(2026-11-16) 인우 몫 「서버 트래픽 성능 테스트 보고서」의 측정 도구
-- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드(대상 없이 띄워 화면에서 대상·주소를 고르고 바꾼다) · 이 PC 밖 주소는 `--allow-remote` · 주소 칸·`--url` 에 게임 페이지 주소 `https://…` 도 — 대상의 클라이언트 규칙으로 ws 주소를 만든다 · `npm run ui -- --allow-remote` 면 배포 페이지가 기본, 지표 토큰은 화면 칸·`.env` `LOAD_STATS_TOKEN`), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
+- **진행:** 봇 실행기(`src/run.ts` — 단계별 늘리기 · 방 나누기 · 중계 지연 p50/95/99 · 기대 수신 대비 · CSV · `--ui` 대시보드(대상 없이 띄워 화면에서 대상·주소를 고르고 바꾼다) · 이 PC 밖 주소는 `--allow-remote` · 주소 칸·`--url` 에 게임 페이지 주소 `https://…` 도 — 대상의 클라이언트 규칙으로 ws 주소를 만든다 · `npm run ui -- --allow-remote` 면 배포 주소가 기본(rinfish 는 접속 서버 wss — 혜린 동의 2026-11-27), 지표 토큰은 화면 칸·`.env` `LOAD_STATS_TOKEN`), 대상 셋(`src/targets/`), 서버 지표 계약 v1(`docs/stats-contract.md` — game-hub·whiteboard-3d 에 적용, rinfish 는 해당 없음). game-hub·whiteboard-3d 는 로컬 서버에 20명 붙여 동작 확인, rinfish 는 테스트로만
 - **검증 기준선:** `bash scripts/verify.sh` 6단계 PASS (docs · reviewer model · script line endings · typecheck · unit tests 17개 · branch discipline)
-- **다음 작업:** 배포 서버(nolja-lobby·nolja-board) 정식 측정 → 보고서. 그 전에 후보 일감의 「과부하면 스스로 멈추기」·「목표 N 에 실패 봇」 을 하면 측정이 편하다. rinfish 는 혜린 동의·접속 서버 주소를 받은 뒤
+- **다음 작업:** 배포 서버(nolja-lobby·nolja-board) 정식 측정 → 보고서. 그 전에 후보 일감의 「과부하면 스스로 멈추기」·「목표 N 에 실패 봇」 을 하면 측정이 편하다. rinfish 도 배포 서버(혜린 동의 2026-11-27)에서 — Cloudflare 대시보드 지표와 함께
 - **차단 요소:** 없음
 
 ## 결정 기록 (Decision Log)
@@ -30,6 +30,7 @@
 | 2026-11-26 | **게임 페이지 주소 → 서버 ws 주소는 대상마다(`Target.pageToSocket`), 그 게임 클라이언트가 접속 주소를 만드는 규칙을 그대로 옮긴다.** 서버에 묻지 않고, 지표 계약에도 넣지 않는다. 규칙을 모르는 대상(rinfish — 접속 서버가 페이지와 따로인 `VITE_ROOM_SERVER`)은 null 이라 ws 주소를 직접 넣어야 한다. 바꾼 주소도 `checkBase` 를 지난다 | 사용자 요청 — 배포 주소를 ws 로 바꿔 적기 번거롭다. 프로젝트마다 규칙이 달라(rinfish) 공용 규칙은 틀린다. 계약에 넣으면 지표를 켜야만 주소를 알고, 버전 올림·두 서버 수정이 따르며, 남의 서버(rinfish)에는 못 넣는다. game-hub·whiteboard-3d 클라이언트는 둘 다 같은 호스트의 `/ws`(코드 확인) |
 | 2026-11-26 | **측정은 배포 서버가 기본 — `--allow-remote` 면 대상의 `deployedPage`(game-hub `nolja-lobby.duckdns.org`, whiteboard `nolja-board.duckdns.org`)가 기본 주소, 로컬은 봇 확인용.** 지표 토큰은 판마다(화면 칸 → `--stats-token` → `.env` `LOAD_STATS_TOKEN`), 화면으로 돌려보내지 않는다. rinfish 는 기본값 없음. `--allow-remote` 문은 그대로 | 사용자 결정 — 같은 PC 에서 재면 봇이 CPU 를 나눠 써 숫자가 흐리고 배포 환경의 한도가 빠져 의미가 없다. rinfish 는 남의 서버(불변식 5)이고 페이지(vercel)와 접속 서버가 따로라 페이지로 알 수 없다 |
 | 2026-11-26 | **`/__stats` 는 3초 기다리고 묻는 중엔 새로 묻지 않는다, 실패 이유(403·시간 초과·없음)를 나눠 보인다** | 배포 측정에서 CPU 100 을 넘자 0.8초 안에 답이 안 와 지표가 「안 내줌」 으로 사라졌다 — `/__stats` 는 게임과 같은 이벤트 루프라 한계를 잴 때 가장 늦다 |
+| 2026-11-27 | **rinfish 도 배포 서버가 기본 — `deployedPage` 에 접속 서버 `wss://rinfish-rooms.rinlee2001.workers.dev` 를 바로 둔다**(페이지는 `seommaeul.vercel.app` 으로 바뀜). `deployedPage` 는 페이지(http/https) 또는 접속 서버(ws/wss) 주소. 2026-11-26 「rinfish 는 기본값 없음」 을 바꾼다 | 주인(혜린)이 동의함(사용자 전달) — 불변식 5 의 조건을 채움. rinfish 는 페이지로 접속 주소를 알 수 없어(`pageToSocket` null) wss 를 그대로 두고, `toSocketBase` 가 ws(s) 는 그대로 통과시켜 실행기는 바뀌지 않는다. `--allow-remote` 문은 그대로 |
 | 2026-11-24 | **`.claude/settings.json` 은 프로파일 기본 그대로** — allow 에 `npm test`·`npm run typecheck`·`npm run load`·`git merge` 를 더하는 것은 사용자가 직접 | 권한 목록은 에이전트가 스스로 넓히지 않는다(적용 중 자동 모드 분류기가 막음). 더하지 않아도 동작은 같고 확인 프롬프트가 뜰 뿐 |
 
 ## 작업 큐 (ralph 루프용)
@@ -62,6 +63,11 @@
 - 미해결: <다음 세션으로 넘기는 것 · 확인하지 못한 것>
 - 다음 작업: <구체적으로>
 ```
+
+### 2026-11-27 — rinfish 배포 서버를 기본 주소로
+- 완료: rinfish 도메인 변경 반영(페이지 `seommaeul.vercel.app`, 접속 서버 `wss://rinfish-rooms.rinlee2001.workers.dev`). 혜린 동의(사용자 전달)로 `deployedPage` 에 wss 를 바로 둠 — `--allow-remote` 면 기본. `Target.deployedPage` 설명을 페이지 또는 접속 서버 주소로. README·stats-contract·결정 기록. verify 6단계 PASS(`c:/` 표기), reviewer APPROVE(MINOR 2 — 옛 결정 줄은 기록이라 둠, 확인 못 한 것은 아래)
+- 미해결: 새 주소로 봇을 실제로 붙여 보지 않았다(접속·입장·방 20명 나뉨 모두 배포 서버에서 미확인). 서버 CPU 는 Cloudflare 대시보드로만
+- 다음 작업: 배포 서버 정식 측정 — rinfish 는 봇 몇 명으로 접속부터 확인하고, 측정 날짜·규모를 혜린에게 미리 알린 뒤
 
 ### 2026-11-26 — 배포 서버 측정 기본 · 화면 지표 토큰 · 지표 시간 초과
 - 완료: 대시보드 지표 토큰 칸(판마다, 비면 `--stats-token` → `.env` `LOAD_STATS_TOKEN`, 화면·SSE 로 돌려보내지 않음), `Target.deployedPage` 로 `--allow-remote` 면 배포 페이지가 기본, `npm run ui`. 배포 측정 중 사용자가 겪은 두 문제 — CPU 그래프가 100 에서 잘림(축이 늘게), 바쁜 서버의 `/__stats` 가 0.8초를 넘겨 지표가 사라짐(3초·겹침 방지·403/시간 초과/없음 구분). 로컬 가짜 서버로 확인: 토큰 없음·틀림 403 표시, 맞으면 CPU, `.env` 토큰, `--allow-remote` 기본 주소, 1.5초 지연 → 값 나옴, 5초 → 시간 초과 표시. 배포 두 서버 `/__stats` 를 밖에서 GET — 토큰 없음·틀림 403, 맞는 토큰 200(두 서버 같은 토큰). verify 6단계 PASS, reviewer APPROVE(MINOR 중 시간 초과 문구 낮춤·README 토큰 주의 반영, 테스트 없는 규칙은 후보 일감)

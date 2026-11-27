@@ -38,7 +38,7 @@ npm test                                  # 순수 규칙 테스트
 |---|---|
 | game-hub | https://nolja-lobby.duckdns.org/ |
 | whiteboard | https://nolja-board.duckdns.org/ |
-| rinfish | 기본값 없음 — 남의 서버라 주인 동의 후, 접속 서버 `wss://` 주소를 직접 |
+| rinfish | `wss://rinfish-rooms.rinlee2001.workers.dev` — 접속 서버 주소 그대로(페이지 https://seommaeul.vercel.app/ 은 접속 서버가 아니다). 주인(혜린) 동의 2026-11-27 |
 
 1. 배포 서버를 `STATS_TOKEN=<비밀>` 로 띄워 두고, 이 저장소 `.env`(git 에 안 올라간다)에 `LOAD_STATS_TOKEN=<같은 비밀>` 한 줄
 2. 단계별로 늘린다 — `npm run load -- game-hub --allow-remote --bots 100 --step 10 --step-every 20 --csv reports/hub.csv`

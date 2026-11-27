@@ -42,8 +42,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 export const rinfish: Target = {
   id: 'rinfish',
   title: 'rinfish (낚시섬)',
-  defaultUrl: 'ws://localhost:8787', // server 폴더에서 npx wrangler dev — 배포는 VITE_ROOM_SERVER 의 wss 주소
-  deployedPage: null, // 페이지 https://rinfish.vercel.app/ 는 접속 서버가 아니다. 남의 서버라 기본값으로 두지 않는다(CLAUDE.md 불변식 5)
+  defaultUrl: 'ws://localhost:8787', // server 폴더에서 npx wrangler dev
+  // 배포 접속 서버(VITE_ROOM_SERVER) — 페이지 https://seommaeul.vercel.app/ 는 접속 서버가 아니라 wss 주소를 바로 둔다.
+  // 남의 서버라 주인(혜린) 동의를 받고 넣었다(2026-11-27, CLAUDE.md 불변식 5)
+  deployedPage: 'wss://rinfish-rooms.rinlee2001.workers.dev',
   pageToSocket: null, // 접속 서버(Workers)가 페이지와 따로 — 빌드 때 넣은 VITE_ROOM_SERVER 라 페이지 주소로 알 수 없다
   roomCap: 20,
   maxHz: 10,

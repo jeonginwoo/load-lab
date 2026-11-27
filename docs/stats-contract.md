@@ -58,5 +58,5 @@ HTTP 요청 처리 맨 앞에서 경로가 `/__stats` 면 `answerStats(...)` 로
 - **서버 쪽 숫자**는 Cloudflare 대시보드의 Workers·Durable Objects 지표(요청 수, CPU 시간, 오류)로 본다. 세부 메뉴는 Cloudflare 문서에서 확인할 것.
 - 꼭 필요해지면 혜린과 정해서 방 객체가 `conns`(그 방의 웹소켓 수)만 내주는 주소를 더할 수 있다 — 지금은 하지 않는다.
 
-**배포된 rinfish 에 봇을 붙이기 전에 혜린에게 먼저 말할 것.** Durable Objects 는 요청·시간만큼 요금이 붙을 수 있고,
+**배포된 rinfish(`wss://rinfish-rooms.rinlee2001.workers.dev`)는 혜린 동의를 받았다(2026-11-27) — 정식 측정 날짜·규모는 미리 알릴 것.** Durable Objects 는 요청·시간만큼 요금이 붙을 수 있고,
 봇 방도 빈 채로 7일 동안 저장소에 남는다. 로컬(`server` 폴더에서 `npx wrangler dev`)에서 먼저 잰다.
